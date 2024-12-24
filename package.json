@@ -6,6 +6,11 @@
     "start": "next start"
   },
   "dependencies": {
+    "@tiptap/extension-image": "^2.10.4",
+    "@tiptap/extension-link": "^2.10.4",
+    "@tiptap/extension-mention": "^2.10.4",
+    "@tiptap/html": "^2.10.4",
+    "@tiptap/starter-kit": "^2.10.4",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
