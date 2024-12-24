@@ -1,6 +1,6 @@
 // See documentation here: https://docs.manifold.markets/api
 
-const MANIFOLD_API_BASE_URL = "https://api.manifold.markets/v0";
+const MANIFOLD_API_BASE_URL = "https://api.manifold.markets";
 
 export type ManifoldUser = {
   id: string;
@@ -28,7 +28,7 @@ export type ManifoldMarket = {
 export async function getManifoldUserByUsername(
   username: string
 ): Promise<ManifoldUser> {
-  const response = await fetch(`${MANIFOLD_API_BASE_URL}/user/${username}`);
+  const response = await fetch(`${MANIFOLD_API_BASE_URL}/v0/user/${username}`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch Manifold user: ${response.statusText}`);

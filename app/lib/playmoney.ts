@@ -26,6 +26,7 @@ export type PlayMoneyMarket = {
 
 export type PlayMoneyList = {
   id: string;
+  title: string;
   ownerId: string;
   markets: { market: PlayMoneyMarket }[];
 };
@@ -100,7 +101,7 @@ export async function updatePlayMoneyList(
 
 export async function searchPlayMoneyMarkets(
   question: string
-): Promise<{ markets: PlayMoneyMarket[] }> {
+): Promise<{ markets: PlayMoneyMarket[]; lists: PlayMoneyList[] }> {
   const response = await fetch(
     `${PLAYMONEY_API_BASE_URL}/search?query=${encodeURIComponent(question)}`
   );

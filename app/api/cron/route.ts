@@ -3,7 +3,6 @@ import { generateHTMLFromTipTap } from "../../lib/tiptap";
 import { getNewManifoldMarkets } from "../../lib/manifold";
 import {
   CreateMarketInput,
-  MarketOption,
   createPlayMoneyMarket,
   getPlayMoneyUserByUsername,
   searchPlayMoneyMarkets,
@@ -65,16 +64,22 @@ export async function GET() {
       // Handle different market types
       if (market.outcomeType === "MULTIPLE_CHOICE") {
         input.type = market.shouldAnswersSumToOne ? "multi" : "list";
-        input.options = createMarketOptions(market.answers);
+        input.options = market.answers.map((answer, i) => ({
+          name: answer.text,
+          color: MARKET_OPTION_COLORS[i % MARKET_OPTION_COLORS.length],
+        }));
         input.contributionPolicy =
           market.addAnswersMode === "ANYONE" ? "PUBLIC" : "OWNERS_ONLY";
       } else if (market.outcomeType !== "BINARY") {
         continue; // Skip unsupported market types
       }
 
-      // Check if market already exists on PlayMoney
-      const existingMarkets = await searchPlayMoneyMarkets(input.question);
-      if (existingMarkets.markets.some((m) => m.question === input.question)) {
+      // Check if market or list already exists with the exact same question
+      const search = await searchPlayMoneyMarkets(input.question);
+      if (
+        search.markets.some((m) => m.question === input.question) ||
+        search.lists.some((l) => l.title === input.question)
+      ) {
         continue;
       }
 
@@ -115,11 +120,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
-
-function createMarketOptions(answers: Array<{ text: string }>): MarketOption[] {
-  return answers.map((answer, i) => ({
-    name: answer.text,
-    color: MARKET_OPTION_COLORS[i % MARKET_OPTION_COLORS.length],
-  }));
 }
