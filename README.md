@@ -1,25 +1,47 @@
-# Welcome to Next.js
+# PlayMoney Bot - Manifold Mirror
 
-This is the most minimal starter for your Next.js project.
+This bot automatically cross-posts markets from [Manifold Markets](https://manifold.markets) to [PlayMoney](https://playmoney.dev/).
 
-## Deploy your own
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcasesandberg%2Fplaymoney-bot-manifold-mirror)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world)
+## How It Works
 
-## How to use
+The bot runs on a cron schedule and performs the following steps:
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+1. **Fetch New Markets**: Checks for any new markets created by a specified Manifold user in the last hour
+
+2. **Create PlayMoney Markets**: For each new Manifold market, creates an equivalent market on PlayMoney.
+   - Supports creating binary, multiple choice, and list markets on PlayMoney
+   - Has basic duplicate prevention (idempotent)
+   - Will transfer ownership to specified user (if different)
+
+## Setup
+
+1. Clone this repository
+
+2. Install dependencies:
 
 ```bash
-npx create-next-app --example hello-world hello-world-app
+npm install
 ```
 
-```bash
-yarn create next-app --example hello-world hello-world-app
+3. Create a `.env` file with the following variables:
+
+```
+PLAYMONEY_API_KEY=your_api_key
+MANIFOLD_USER_TO_WATCH=username
+PLAYMONEY_USER_TO_CREATE_AS=username
 ```
 
-```bash
-pnpm create next-app --example hello-world hello-world-app
-```
+4. Deploy to Vercel and set up the cron schedule:
+   - Add the environment variables in your Vercel project settings
+   - Set up a cron job to hit the `/api/cron` endpoint (e.g., every hour)
 
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+## API Documentation
+
+- PlayMoney API: [api.playmoney.dev](https://api.playmoney.dev)
+- Manifold Markets API: [docs.manifold.markets/api](https://docs.manifold.markets/api)
+
+## Contributing
+
+Feel free to open issues or submit pull requests if you have suggestions for improvements!
