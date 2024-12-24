@@ -1,95 +1,108 @@
+// See documentation here: https://api.playmoney.dev/
+
+const PLAYMONEY_API_BASE_URL = "https://api.playmoney.dev/v1";
 const PLAYMONEY_API_KEY = process.env.PLAYMONEY_API_KEY;
+
+export type MarketOption = {
+  name: string;
+  color: string;
+};
 
 export type CreateMarketInput = {
   question: string;
   description: string;
   closeDate: string;
-  options?: Array<{
-    name: string;
-    color: string;
-  }>;
-  tags: Array<string>;
+  options?: MarketOption[];
+  tags: string[];
   type: "binary" | "multi" | "list";
   contributionPolicy?: "OWNERS_ONLY" | "PUBLIC";
 };
 
-type PlayMoneyMarket = {
+export type PlayMoneyMarket = {
   id: string;
   question: string;
   createdBy: string;
 };
 
-export async function getPlayMoneyUserByUsername(
-  username: string
-): Promise<{ id: string }> {
-  const response = await fetch(
-    `https://api.playmoney.dev/v1/users/username/${username}`
-  );
+export type PlayMoneyList = {
+  id: string;
+  ownerId: string;
+  markets: { market: PlayMoneyMarket }[];
+};
 
+export type PlayMoneyUser = {
+  id: string;
+};
+
+if (!PLAYMONEY_API_KEY) {
+  throw new Error("PLAYMONEY_API_KEY environment variable is not set");
+}
+
+const headers = {
+  "Content-Type": "application/json",
+  "x-api-key": PLAYMONEY_API_KEY,
+};
+
+async function handlePlayMoneyResponse<T>(response: Response): Promise<T> {
   const data = await response.json();
 
-  if (data.error) {
-    throw new Error(data.error);
+  if (!response.ok || data.error) {
+    throw new Error(`PlayMoney API error: ${data.error}`);
   }
 
   return data.data;
 }
 
+export async function getPlayMoneyUserByUsername(
+  username: string
+): Promise<PlayMoneyUser> {
+  const response = await fetch(
+    `${PLAYMONEY_API_BASE_URL}/users/username/${username}`
+  );
+
+  return handlePlayMoneyResponse(response);
+}
+
 export async function createPlayMoneyMarket(
   market: CreateMarketInput
-): Promise<PlayMoneyMarket> {
-  const response = await fetch("https://api.playmoney.dev/v1/markets", {
+): Promise<{ market?: PlayMoneyMarket; list?: PlayMoneyList }> {
+  const response = await fetch(`${PLAYMONEY_API_BASE_URL}/markets`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": PLAYMONEY_API_KEY,
-    },
+    headers,
     body: JSON.stringify(market),
   });
-
-  const data = await response.json();
-
-  if (data.error) {
-    throw new Error(data.error);
-  }
-
-  return data.market;
+  return handlePlayMoneyResponse(response);
 }
 
 export async function updatePlayMoneyMarket(
   id: string,
   input: { createdBy: string }
 ): Promise<PlayMoneyMarket> {
-  const response = await fetch(`https://api.playmoney.dev/v1/markets/${id}`, {
+  const response = await fetch(`${PLAYMONEY_API_BASE_URL}/markets/${id}`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": PLAYMONEY_API_KEY,
-    },
+    headers,
     body: JSON.stringify(input),
   });
-
-  const data = await response.json();
-
-  if (data.error) {
-    throw new Error(data.error);
-  }
-
-  return data.data;
+  return handlePlayMoneyResponse(response);
 }
 
-export async function searchPlayMoneyMarkets(question: string): Promise<{
-  markets: Array<PlayMoneyMarket>;
-}> {
+export async function updatePlayMoneyList(
+  id: string,
+  input: { ownerId: string }
+): Promise<PlayMoneyList> {
+  const response = await fetch(`${PLAYMONEY_API_BASE_URL}/lists/${id}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(input),
+  });
+  return handlePlayMoneyResponse(response);
+}
+
+export async function searchPlayMoneyMarkets(
+  question: string
+): Promise<{ markets: PlayMoneyMarket[] }> {
   const response = await fetch(
-    `https://api.playmoney.dev/v1/search?query=${question}`
+    `${PLAYMONEY_API_BASE_URL}/search?query=${encodeURIComponent(question)}`
   );
-
-  const data = await response.json();
-
-  if (data.error) {
-    throw new Error(data.error);
-  }
-
-  return data.data;
+  return handlePlayMoneyResponse(response);
 }

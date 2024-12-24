@@ -3,15 +3,23 @@ import { generateHTMLFromTipTap } from "../../lib/tiptap";
 import { getNewManifoldMarkets } from "../../lib/manifold";
 import {
   CreateMarketInput,
+  MarketOption,
   createPlayMoneyMarket,
   getPlayMoneyUserByUsername,
   searchPlayMoneyMarkets,
+  updatePlayMoneyList,
   updatePlayMoneyMarket,
 } from "../../lib/playmoney";
 
+// Environment variable validation
 const MANIFOLD_USER_TO_WATCH = process.env.MANIFOLD_USER_TO_WATCH;
 const PLAYMONEY_USER_TO_CREATE_AS = process.env.PLAYMONEY_USER_TO_CREATE_AS;
 
+if (!MANIFOLD_USER_TO_WATCH || !PLAYMONEY_USER_TO_CREATE_AS) {
+  throw new Error("Required environment variables are not set");
+}
+
+// Colors for multiple choice market options
 const MARKET_OPTION_COLORS = [
   "#f44336",
   "#9c27b0",
@@ -23,67 +31,82 @@ const MARKET_OPTION_COLORS = [
   "#ff9800",
   "#795548",
   "#607d8b",
-];
+] as const;
 
 export async function GET() {
   try {
+    // Get markets created in the last hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const newManifoldMarkets = await getNewManifoldMarkets(
       MANIFOLD_USER_TO_WATCH,
       oneHourAgo
     );
-    const user = await getPlayMoneyUserByUsername(PLAYMONEY_USER_TO_CREATE_AS);
-    let marketsCreated = 0;
+
+    const createAsUser = await getPlayMoneyUserByUsername(
+      PLAYMONEY_USER_TO_CREATE_AS
+    );
+    let created = 0;
 
     for (const market of newManifoldMarkets) {
+      // Create cross-post attribution
       const marketUrl = `https://manifold.markets/${market.creatorUsername}/${market.slug}`;
       const crossPostText = `<p>This was cross-posted from <a target="_blank" rel="noopener noreferrer nofollow" href="${marketUrl}">Manifold Markets</a>.</p>`;
 
-      let input: CreateMarketInput = {
+      // Prepare market input
+      const input: CreateMarketInput = {
         question: market.question,
         description: generateHTMLFromTipTap(market.description) + crossPostText,
         closeDate: new Date(market.closeTime).toISOString(),
         type: "binary",
         tags: [],
+        options: [],
       };
 
+      // Handle different market types
       if (market.outcomeType === "MULTIPLE_CHOICE") {
         input.type = market.shouldAnswersSumToOne ? "multi" : "list";
-        input.options = market.answers.map((answer, i) => ({
-          name: answer.text,
-          color: MARKET_OPTION_COLORS[i % MARKET_OPTION_COLORS.length],
-        }));
+        input.options = createMarketOptions(market.answers);
         input.contributionPolicy =
           market.addAnswersMode === "ANYONE" ? "PUBLIC" : "OWNERS_ONLY";
-      } else if (market.outcomeType === "BINARY") {
-        input.options = [];
-      } else {
+      } else if (market.outcomeType !== "BINARY") {
+        continue; // Skip unsupported market types
+      }
+
+      // Check if market already exists on PlayMoney
+      const existingMarkets = await searchPlayMoneyMarkets(input.question);
+      if (existingMarkets.markets.some((m) => m.question === input.question)) {
         continue;
       }
 
-      const searchResults = await searchPlayMoneyMarkets(input.question);
+      const data = await createPlayMoneyMarket(input);
 
-      if (
-        searchResults.markets.some(
-          (market) => market.question === input.question
-        )
-      ) {
-        continue; // Market already exists
+      // In the case of the API key user being different than PLAYMONEY_USER_TO_CREATE_AS
+      // Loop through and give ownership of all lists and markets created to that user
+      if (data.market && data.market.createdBy !== createAsUser.id) {
+        await updatePlayMoneyMarket(data.market.id, {
+          createdBy: createAsUser.id,
+        });
+      } else if (data.list && data.list.ownerId !== createAsUser.id) {
+        await updatePlayMoneyList(data.list.id, {
+          ownerId: createAsUser.id,
+        });
+
+        for (const innerMarket of data.list.markets) {
+          if (innerMarket.market.createdBy !== createAsUser.id) {
+            await updatePlayMoneyMarket(innerMarket.market.id, {
+              createdBy: createAsUser.id,
+            });
+          }
+        }
       }
 
-      const newMarket = await createPlayMoneyMarket(input);
-
-      if (newMarket.createdBy !== user.id) {
-        await updatePlayMoneyMarket(newMarket.id, { createdBy: user.id });
-      }
-
-      marketsCreated++;
+      created++;
     }
 
     return NextResponse.json({
       success: true,
-      marketsFound: newManifoldMarkets.length,
-      marketsCreated,
+      found: newManifoldMarkets.length,
+      created,
     });
   } catch (error) {
     console.error("Error in cron job:", error);
@@ -92,4 +115,11 @@ export async function GET() {
       { status: 500 }
     );
   }
+}
+
+function createMarketOptions(answers: Array<{ text: string }>): MarketOption[] {
+  return answers.map((answer, i) => ({
+    name: answer.text,
+    color: MARKET_OPTION_COLORS[i % MARKET_OPTION_COLORS.length],
+  }));
 }
