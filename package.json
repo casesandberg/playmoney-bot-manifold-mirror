@@ -12,14 +12,10 @@
     "@tiptap/extension-mention": "^2.10.4",
     "@tiptap/html": "^2.10.4",
     "@tiptap/starter-kit": "^2.10.4",
-    "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "next": "latest"
   },
   "devDependencies": {
     "@types/node": "20.10.8",
-    "@types/react": "18.2.47",
-    "@types/react-dom": "18.2.18",
     "typescript": "^5.3.3"
   }
 }
